@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "__string": "c"
+        "__string": "c",
+        "test,c": "c"
     }
 }
