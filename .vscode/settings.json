@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "__string": "c",
-        "test,c": "c"
+        "test,c": "c",
+        "stdbool.h": "c"
     }
 }

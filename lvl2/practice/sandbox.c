@@ -1,14 +1,13 @@
-#include <stdbool.h>
 #include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <stdio.h>
-#include <signal.h>
+#include <stdbool.h>
 #include <string.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <sys/wait.h>
+#include <signal.h>
 
-int sandbox(void (*f)(void), unsigned int timeout, bool verbose)
-{
+int	sandbox(void (*f)(void), unsigned int timeout, bool verbose)
+{   
     pid_t pid;
     int status;
 
@@ -19,14 +18,14 @@ int sandbox(void (*f)(void), unsigned int timeout, bool verbose)
     {
         alarm(timeout);
         f();
-        _exit(1);
+        _exit(0);
     }
+
+    alarm(0);
 
     if (waitpid(pid, &status, 0) < 0)
         return (-1);
     
-    alarm(0);
-
     if (WIFSIGNALED(status))
     {
         int sig = WTERMSIG(status);
@@ -43,7 +42,7 @@ int sandbox(void (*f)(void), unsigned int timeout, bool verbose)
 
     if (WIFEXITED(status))
     {
-        int exit_code = WEXITSTATUS(status);
+        int exit_code =  WEXITSTATUS(status);
         if (exit_code == 0)
         {
             if (verbose)
@@ -53,11 +52,11 @@ int sandbox(void (*f)(void), unsigned int timeout, bool verbose)
         if (verbose)
             printf("Bad function: exited with code %d\n", exit_code);
         return (0);
-    }
+    }   
     return (-1);
 }
 
-void do_abort(void)
+void do_abort()
 {
     abort();
 }
