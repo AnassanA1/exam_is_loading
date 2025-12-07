@@ -1,13 +1,12 @@
-#include <stdbool.h>
 #include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
+#include <stdbool.h>
 #include <stdio.h>
+#include <sys/wait.h>
 #include <signal.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
-int sandbox(void (*f)(void), unsigned int timeout, bool verbose)
+int     sandbox(void (*f)(void), unsigned int timeout, bool verbose)
 {
     pid_t pid;
     int status;
@@ -15,18 +14,18 @@ int sandbox(void (*f)(void), unsigned int timeout, bool verbose)
     pid = fork();
     if (pid < 0)
         return (-1);
-    else if (pid == 0)
+    if (pid == 0)
     {
         alarm(timeout);
         f();
         _exit(0);
     }
 
-    if (waitpid(pid, &status, 0) < 0)
+    if (waitpid(pid, &status, 0) == -1)
         return (-1);
-    
-    alarm(0);
 
+    
+    
     if (WIFSIGNALED(status))
     {
         int sig = WTERMSIG(status);
@@ -34,6 +33,7 @@ int sandbox(void (*f)(void), unsigned int timeout, bool verbose)
         {
             if (verbose)
                 printf("Bad function: timed out after %u seconds\n", timeout);
+            kill(pid, SIGKILL);
             return (0);
         }
         if (verbose)
@@ -43,7 +43,7 @@ int sandbox(void (*f)(void), unsigned int timeout, bool verbose)
 
     if (WIFEXITED(status))
     {
-        int exit_code = WEXITSTATUS(status);
+        int exit_code =  WEXITSTATUS(status);
         if (exit_code == 0)
         {
             if (verbose)
@@ -57,12 +57,36 @@ int sandbox(void (*f)(void), unsigned int timeout, bool verbose)
     return (-1);
 }
 
-void do_abort(void)
-{
+void test_segfault(void) {
+    strlen(NULL);
+}
+
+void test_abort(void) {
     abort();
 }
 
-int main()
-{
-    printf("%d\n", sandbox(do_abort, 3, true));
+void test_timeout(void) {
+    while(1);
+}
+
+void test_exit_bad(void) {
+    exit(42);
+}
+
+void test_nice(void) {
+    return ;
+}
+
+// void test_div_zero(void) {
+//     int x = 5 / 0;
+//     (void)x;
+// }
+
+int main(void) {
+    printf("Test 3: "); sandbox(test_abort, 5, true);
+    printf("Test 1: "); sandbox(test_nice, 5, true);
+    printf("Test 2: "); sandbox(test_segfault, 5, true);
+    printf("Test 4: "); sandbox(test_timeout, 10, true);
+    printf("Test 5: "); sandbox(test_exit_bad, 5, true);
+    return 0;
 }

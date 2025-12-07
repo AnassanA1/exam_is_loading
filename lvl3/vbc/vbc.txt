@@ -1,0 +1,102 @@
+#include <unistd.h>
+#include <stdio.h>
+#include <string.h>
+
+char *input;
+int flag;
+
+int parse_expr();
+int parse_terms();
+int parse_factor();
+
+int parse_expr()
+{
+    int left = parse_terms();
+    while(*input == '+')
+    {
+        input++;
+        int right = parse_terms();
+        left  = left + right;
+    }
+    return left;
+}
+int parse_terms()
+{
+    int left = parse_factor();
+    while(*input == '*')
+    {
+        input++;
+        int right = parse_factor();
+        left  = left * right;
+    }
+    return left;
+}
+int parse_factor()
+{
+    if(*input >= '0' && *input <= '9')
+    {
+        int k = *input - '0';
+        input++;
+        return k;
+    }
+    else if(*input == '(')
+    {
+        input++;
+        int var = parse_expr();
+        if(*input == ')')
+        {
+            input++;
+        }
+        else 
+        {
+            if(*input == '\0')
+            {
+                printf("Unexpected end of input\n");
+                flag = 1;
+                return 1;
+            }
+            else
+            {
+                printf("Unexpected token '%c'\n",*input);
+                flag = 1;
+                return 1;
+            }
+        }
+        return var;
+    }
+    else if(*input == '\0')
+    {
+                printf("Unexpected end of input\n");
+                flag = 1;
+                return 1;
+    }
+            else
+            {
+                printf("Unexpected token '%c'\n",*input);
+                flag = 1;
+                return 1;
+            }
+ 
+    return -1;
+}
+
+int main(int ac , char **av)
+{
+    if(ac != 2)
+    {
+        return 1;
+    }
+    input = av[1];
+    int var = parse_expr();
+    if(*input != '\0' && flag != 1)
+    {
+        printf("Unexpected token '%c'\n",*input);
+        return 1;
+    }
+    if(flag == 0)
+    {
+        printf("%d\n",var);
+        return 0;
+    }
+    return 1;
+}

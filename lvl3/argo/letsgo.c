@@ -1,10 +1,3 @@
-//this code is already given
-//you just need to code the following functions that you can find in argo.c
-//parse_int - parse_string - parse_map - parser - argo
-
-//note that if everything is perfect but still there is a segfault in the 9th test just replace <stdlib.h>
-//with <malloc.h> don't worry if it doesn't compile in your machine
-
 #include <stdio.h>
 #include <stdbool.h>
 #include <ctype.h>
@@ -120,7 +113,112 @@ void	serialize(json j)
 	}
 }
 
+int parse_map(json *dst, FILE *stream)
+{
+	pair *data;
+	size_t size;
+	json key;
 
+	if (!expect(stream, '{'))
+		return (-1);
+	data = NULL;
+	size = 0;
+	while (!accept(stream, '}'))
+	{
+		data = realloc(data, sizeof(pair) * (size + 1));
+		if (!parse_string(&key, stream))
+		{
+			free(data);
+			return (-1);
+		}
+		if (!expect(stream, ':'))
+		{
+			free(key.string);
+			free(data);
+			return (-1);
+		}
+		if (parser(&data[size].value, stream) == -1)
+		{
+			free(key.string);
+			free(data);
+			return (-1);
+		}
+
+	}
+}
+
+int parse_integer(json *dst, FILE *stream)
+{
+	int c = peek(stream);
+
+	if (isdigit(c) || c == '-')
+	{
+		dst->type = INTEGER;
+		dst->integer = c;
+		return (1);
+	}
+	unexpected(stream);
+	return(-1);
+}
+
+int parse_string(json *dst, FILE *stream)
+{
+	char buf[4096];
+	int i;
+	char c;
+
+	if (!accept(stream, '"'))
+		return (-1);
+	i = 0;
+	while (1)
+	{
+		c = getc(stream);
+		if (c == EOF)
+		{
+			unexpected(stream);
+			return (-1);
+		}
+		if (c == '"')
+			break;
+		if (c == '\\')
+		{
+			c = getc(stream);
+			if (c == EOF)
+			{
+				unexpected(stream);
+				return (-1);
+			}
+		}
+		buf[i++] = c;
+	}
+	buf[i] = '\0';
+	dst->string = strdup(buf);
+	dst->type = STRING;
+	return (1);
+}
+
+int parser(json *dst, FILE *stream)
+{
+	int c;
+
+	c = peek(stream);
+	if (c == '"')
+		return (parse_string(dst, stream));
+	else if (isdigit(c) || c == '-')
+		return (parse_integer(dst, stream));
+	else if (c == '{')
+		return (parse_map(dst, stream));
+	else
+	{
+		unexpected(stream);
+		return (-1);
+	}
+}
+
+int argo(json *dst, FILE *stream)
+{
+	return (parser(dst, stream));
+}
 
 int	main(int argc, char **argv)
 {

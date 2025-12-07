@@ -25,12 +25,6 @@ typedef struct pair {
     json value;
 } pair;
 
-void ll(void)
-{
-    system("leaks a.out");
-
-}
-
 void free_json(json j);
 int argo(json *dst, FILE *stream);
 
@@ -354,6 +348,5 @@ int main(int argc, char **argv)
     
     free_json(file);
     fclose(stream);
-    atexit(ll);
     return 0;
 }

@@ -24,8 +24,6 @@ int	sandbox(void (*f)(void), unsigned int timeout, bool verbose)
     if (waitpid(pid, &status, 0) == -1)
         return (-1);
     
-    alarm(0);
-
     if (WIFSIGNALED(status))
     {
         int sig = WTERMSIG(status);

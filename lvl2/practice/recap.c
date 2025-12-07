@@ -1,16 +1,14 @@
-#include <stdbool.h>
 #include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <stdio.h>
-#include <signal.h>
-#include <string.h>
 #include <stdlib.h>
+#include <sys/wait.h>
+#include <string.h>
+#include <stdbool.h>
+#include <stdio.h>
 
-int sandbox(void (*f)(void), unsigned int timeout, bool verbose)
-{
-    pid_t pid;
+int	sandbox(void (*f)(void), unsigned int timeout, bool verbose) {
+
     int status;
+    pid_t pid;
 
     pid = fork();
     if (pid < 0)
@@ -21,8 +19,7 @@ int sandbox(void (*f)(void), unsigned int timeout, bool verbose)
         f();
         _exit(0);
     }
-
-    if (waitpid(pid, &status, 0) < 0)
+    if (waitpid(pid, &status, 0) == -1)
         return (-1);
     
     alarm(0);
@@ -62,7 +59,24 @@ void do_abort(void)
     abort();
 }
 
-int main()
+void do_print(void)
 {
-    printf("%d\n", sandbox(do_abort, 3, true));
+    printf("hello\n");
+}
+
+void do_nothing(void)
+{
+    return ;
+}
+
+void test_exit_bad(void) {
+    exit(42);
+}
+
+int main(void)
+{
+    printf("%d\n", sandbox(test_exit_bad, 2, true));
+    printf("%d\n", sandbox(do_nothing, 2, true));
+    printf("%d\n", sandbox(do_print, 2, true));
+    printf("%d\n", sandbox(do_abort, 2, true));
 }
