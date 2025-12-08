@@ -27,12 +27,24 @@ typedef struct	pair {
 
 void	free_json(json j);
 int	argo(json *dst, FILE *stream);
+int parser(json *dst, FILE *stream);
+int parse_integer(json *dst, FILE *stream);
+int parse_string(json *dst, FILE *stream);
+int parse_map(json *dst, FILE *stream);
+void skip_whitespace(FILE *stream);
 
 int	peek(FILE *stream)
 {
 	int	c = getc(stream);
 	ungetc(c, stream);
 	return c;
+}
+
+void skip_whitespace(FILE *stream)
+{
+    int c;
+    while ((c = peek(stream)) == ' ' || c == '\t' || c == '\n' || c == '\r')
+        getc(stream);
 }
 
 void	unexpected(FILE *stream)
@@ -113,109 +125,173 @@ void	serialize(json j)
 	}
 }
 
-int parse_map(json *dst, FILE *stream)
+char *get_str(FILE *stream)
 {
-	pair *data;
-	size_t size;
-	json key;
+	char *res = calloc(4096, sizeof(char));
+	int i = 0;
+	char c = getc(stream);
 
-	if (!expect(stream, '{'))
-		return (-1);
-	data = NULL;
-	size = 0;
-	while (!accept(stream, '}'))
-	{
-		data = realloc(data, sizeof(pair) * (size + 1));
-		if (!parse_string(&key, stream))
-		{
-			free(data);
-			return (-1);
-		}
-		if (!expect(stream, ':'))
-		{
-			free(key.string);
-			free(data);
-			return (-1);
-		}
-		if (parser(&data[size].value, stream) == -1)
-		{
-			free(key.string);
-			free(data);
-			return (-1);
-		}
-
-	}
-}
-
-int parse_integer(json *dst, FILE *stream)
-{
-	int c = peek(stream);
-
-	if (isdigit(c) || c == '-')
-	{
-		dst->type = INTEGER;
-		dst->integer = c;
-		return (1);
-	}
-	unexpected(stream);
-	return(-1);
-}
-
-int parse_string(json *dst, FILE *stream)
-{
-	char buf[4096];
-	int i;
-	char c;
-
-	if (!accept(stream, '"'))
-		return (-1);
-	i = 0;
 	while (1)
 	{
 		c = getc(stream);
+		
+		if (c == '"')
+			break ;
 		if (c == EOF)
 		{
 			unexpected(stream);
-			return (-1);
+			return NULL;
 		}
-		if (c == '"')
-			break;
 		if (c == '\\')
-		{
 			c = getc(stream);
-			if (c == EOF)
-			{
-				unexpected(stream);
-				return (-1);
-			}
-		}
-		buf[i++] = c;
+		res[i++] = c;
 	}
-	buf[i] = '\0';
-	dst->string = strdup(buf);
-	dst->type = STRING;
-	return (1);
+	return (res);
 }
+
+int parse_map(json *dst, FILE *stream)
+{
+	dst->type = MAP;
+	dst->map.size = 0;
+	dst->map.data = NULL;
+	char c = getc(stream);
+
+	if (peek(stream) == '}')
+		return 1;
+
+	while (1)
+	{
+		c = peek(stream);
+		if (c != '"')
+		{
+			unexpected(stream);
+			return -1;
+		}
+		dst->map.data = realloc(dst->map.data, (dst->map.size + 1) * sizeof(pair));
+		pair *current = &dst->map.data[dst->map.size];
+		current->key = get_str(stream);
+		if (current->key == NULL)
+			return -1;
+		dst->map.size++;
+		if (expect(stream, ':') == 0)
+			return -1;
+		if (argo(&current->value, stream) == -1) // check it out
+			return -1;
+		c = peek(stream);
+		if (c == '}')
+		{
+			accept(stream ,c);
+			break ;
+		}
+		if (c == ',')
+			accept(stream, c);
+		else
+		{
+			unexpected(stream);
+			return -1;
+		}
+	}
+	return 1;
+}
+
+// int parse_string(json *dst, FILE *stream)
+// {
+// 	char buf[4096];
+// 	char c;
+// 	int i;
+
+// 	if (!expect(stream, '"'))
+// 		return (-1);
+// 	i = 0;
+// 	while (1)
+// 	{
+// 		c = getc(stream);
+// 		if (c == EOF)
+// 		{
+// 			unexpected(stream);
+// 			return (-1);
+// 		}
+
+// 		if (c == '"')
+// 			break;
+// 		if (c == '\\')
+// 		{
+// 			c = getc(stream);
+// 			if (c == EOF)
+// 			{
+// 				unexpected(stream);
+// 				return (-1);
+// 			}
+// 		}
+// 		buf[i++] = c;
+// 	}
+// 	buf[i] = '\0';
+// 	dst->type = STRING;
+// 	dst->string = strdup(buf);
+// 	return(1);
+// }
+
+int parse_int(json *dst, FILE *stream)
+{
+	int n;
+
+	if (fscanf(stream, "%d", &n) == 1)
+	{
+		dst->type = INTEGER;
+		dst->integer = n;
+		return (1);
+	}
+	unexpected(stream);
+	return (-1);
+}
+
+// int parser(json *dst, FILE *stream)
+// {
+// 	int n = peek(stream);
+
+// 	if (n == '"')
+// 		return (parse_string(dst, stream));
+// 	else if (isdigit(n) || n == '-')
+// 		return (parse_integer(dst, stream));
+// 	else if (n == '{')
+// 		return (parse_map(dst, stream));
+// 	else
+// 	{
+// 		unexpected(stream);
+// 		return (-1);
+// 	}
+// }
 
 int parser(json *dst, FILE *stream)
 {
-	int c;
+	int c = peek(stream);
 
-	c = peek(stream);
-	if (c == '"')
-		return (parse_string(dst, stream));
-	else if (isdigit(c) || c == '-')
-		return (parse_integer(dst, stream));
+	if (c == EOF)
+	{
+		unexpected(stream);
+		return -1;
+	}
+	if (isdigit(c))
+		return (parse_int(dst, stream));
+	else if (c == '"')
+	{
+		dst->type = STRING;
+		dst->string = get_str(stream);
+		if (dst->string == NULL)
+			return (-1);
+		return (1);
+	}
 	else if (c == '{')
 		return (parse_map(dst, stream));
 	else
 	{
 		unexpected(stream);
-		return (-1);
+		return -1;
 	}
+	return (1);
 }
 
-int argo(json *dst, FILE *stream)
+int	argo(json *dst, FILE *stream)
 {
 	return (parser(dst, stream));
 }
